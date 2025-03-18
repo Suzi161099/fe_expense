@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'home.dart'; // Import màn hình Home
 import 'login.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -11,7 +12,7 @@ class ProfileScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.pink.shade900,
         elevation: 0,
-        automaticallyImplyLeading: true, // Đảm bảo hiển thị nút Back
+        automaticallyImplyLeading: false, // Không tự động tạo nút Back
         title: const Text(
           "Profile",
           style: TextStyle(
@@ -24,7 +25,11 @@ class ProfileScreen extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            Navigator.pop(context); // Trở về màn hình trước đó
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              (Route<dynamic> route) => false, // Xóa tất cả màn hình trước đó
+            );
           },
         ),
       ),
@@ -124,3 +129,4 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 }
+
