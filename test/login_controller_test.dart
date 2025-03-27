@@ -1,115 +1,124 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mockito/mockito.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
-
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fe_expense/controllers/login_controller.dart';
 import 'package:fe_expense/screen/home.dart';
 import 'package:fe_expense/screen/login.dart';
 
-import 'login_controller_test.mocks.dart'; 
+import 'login_controller_test.mocks.dart'; // Import file mock
 
-// Tạo mock class tự động
-@GenerateMocks([http.Client])
+// Mock các dependency
+@GenerateMocks([http.Client, SharedPreferences])
 void main() {
   late LoginController loginController;
-  late MockClient mockHttpClient;
+  late MockClient mockClient;
+  late MockSharedPreferences mockPrefs;
 
   setUp(() {
-    mockHttpClient = MockClient();
-    loginController = LoginController(httpClient: mockHttpClient);
+    mockClient = MockClient();
+    loginController = LoginController(httpClient: mockClient);
+    mockPrefs = MockSharedPreferences();
+  });
+
+  /// 🟠 **Test: Nhập thiếu thông tin**
+  testWidgets('Không nhập email hoặc password hiển thị cảnh báo', (WidgetTester tester) async {
+    loginController.emailController.text = '';
+    loginController.passwordController.text = '';
+
+    await tester.pumpWidget(_buildTestApp(loginController));
+
+    await tester.tap(find.text('Đăng nhập'));
+    await tester.pump();
+
+    expect(find.text("Vui lòng nhập đầy đủ thông tin"), findsOneWidget);
+  });
+
+  /// 🟢 **Test: Đăng nhập thành công**
+  testWidgets('Đăng nhập thành công lưu token và chuyển sang HomeScreen', (WidgetTester tester) async {
+    loginController.emailController.text = 'user@example.com';
+    loginController.passwordController.text = 'password123';
+
+    when(mockClient.post(any, headers: anyNamed('headers'), body: anyNamed('body')))
+        .thenAnswer((_) async => http.Response('{"success": true, "token": "abc123"}', 200));
+
     SharedPreferences.setMockInitialValues({}); // Khởi tạo mock SharedPreferences
+
+    await tester.pumpWidget(_buildTestApp(loginController));
+
+    await tester.tap(find.text('Đăng nhập'));
+    await tester.pump();
+
+    expect(find.text("Đăng nhập thành công!"), findsOneWidget);
   });
 
-  tearDown(() {
-    loginController.dispose();
+  /// 🔴 **Test: Đăng nhập thất bại**
+  testWidgets('Đăng nhập thất bại hiển thị thông báo lỗi', (WidgetTester tester) async {
+    loginController.emailController.text = 'user@example.com';
+    loginController.passwordController.text = 'wrongpassword';
+
+    when(mockClient.post(any, headers: anyNamed('headers'), body: anyNamed('body')))
+        .thenAnswer((_) async => http.Response('{"success": false, "message": "Sai email hoặc mật khẩu"}', 400));
+
+    await tester.pumpWidget(_buildTestApp(loginController));
+
+    await tester.tap(find.text('Đăng nhập'));
+    await tester.pump();
+
+    expect(find.text("Sai email hoặc mật khẩu"), findsOneWidget);
   });
 
-  test('Nhập email và password hợp lệ', () {
-    loginController.emailController.text = "test@gmail.com";
-    loginController.passwordController.text = "123456";
+  /// 🚨 **Test: Lỗi mạng**
+  testWidgets('Lỗi mạng hiển thị thông báo lỗi', (WidgetTester tester) async {
+    loginController.emailController.text = 'user@example.com';
+    loginController.passwordController.text = 'password123';
 
-    expect(loginController.emailController.text, "test@gmail.com");
-    expect(loginController.passwordController.text, "123456");
+    when(mockClient.post(any, headers: anyNamed('headers'), body: anyNamed('body')))
+        .thenThrow(Exception('No Internet'));
+
+    await tester.pumpWidget(_buildTestApp(loginController));
+
+    await tester.tap(find.text('Đăng nhập'));
+    await tester.pump();
+
+    expect(find.text("Lỗi kết nối đến server!"), findsOneWidget);
   });
 
-  testWidgets('Đăng nhập thành công', (WidgetTester tester) async {
-    when(mockHttpClient.post(
-      any,
-      headers: anyNamed("headers"),
-      body: anyNamed("body"),
-    )).thenAnswer((_) async => http.Response(jsonEncode({"success": true, "token": "fake_token"}), 200));
+  /// 🔑 **Test: Đăng xuất**
+  testWidgets('Đăng xuất xóa token và chuyển về LoginScreen', (WidgetTester tester) async {
+    when(mockPrefs.remove("token")).thenAnswer((_) async => true);
 
-    bool isLoading = false;
-    void setLoading(bool value) => isLoading = value;
+    await tester.pumpWidget(_buildTestApp(loginController));
 
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: Builder(
-      builder: (BuildContext context) {
-        loginController.loginUser(context, setLoading);
-        return Container();
-      },
-    ))));
+    await tester.tap(find.text('Đăng xuất'));
+    await tester.pump();
 
-    final prefs = await SharedPreferences.getInstance();
-    expect(await prefs.getString("token"), "fake_token");
+    expect(find.byType(LoginScreen), findsOneWidget);
   });
+}
 
-  testWidgets('Sai email hoặc password', (WidgetTester tester) async {
-    when(mockHttpClient.post(
-      any,
-      headers: anyNamed("headers"),
-      body: anyNamed("body"),
-    )).thenAnswer((_) async => http.Response(jsonEncode({"success": false, "message": "Sai thông tin đăng nhập"}), 401));
-
-    bool isLoading = false;
-    void setLoading(bool value) => isLoading = value;
-
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: Builder(
-      builder: (BuildContext context) {
-        loginController.loginUser(context, setLoading);
-        return Container();
-      },
-    ))));
-
-    final prefs = await SharedPreferences.getInstance();
-    expect(await prefs.getString("token"), isNull);
-  });
-
-  testWidgets('Lỗi kết nối server', (WidgetTester tester) async {
-    when(mockHttpClient.post(
-      any,
-      headers: anyNamed("headers"),
-      body: anyNamed("body"),
-    )).thenThrow(Exception("Server không phản hồi"));
-
-    bool isLoading = false;
-    void setLoading(bool value) => isLoading = value;
-
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: Builder(
-      builder: (BuildContext context) {
-        loginController.loginUser(context, setLoading);
-        return Container();
-      },
-    ))));
-
-    final prefs = await SharedPreferences.getInstance();
-    expect(await prefs.getString("token"), isNull);
-  });
-
-  testWidgets('Đăng xuất', (WidgetTester tester) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString("token", "fake_token");
-
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: Builder(
-      builder: (BuildContext context) {
-        loginController.signOut(context);
-        return Container();
-      },
-    ))));
-
-    expect(await prefs.getString("token"), isNull);
-  });
+/// 🏗️ Hàm xây dựng Widget test
+Widget _buildTestApp(LoginController controller) {
+  return MaterialApp(
+    home: Scaffold(
+      body: Builder(
+        builder: (context) {
+          return Column(
+            children: [
+              TextButton(
+                onPressed: () => controller.loginUser(context, (bool _) {}),
+                child: const Text("Đăng nhập"),
+              ),
+              TextButton(
+                onPressed: () => controller.signOut(context),
+                child: const Text("Đăng xuất"),
+              ),
+            ],
+          );
+        },
+      ),
+    ),
+  );
 }

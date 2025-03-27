@@ -178,6 +178,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
 import '../controllers/manual_input_controller.dart';
 
 class ManualInputScreen extends StatefulWidget {
@@ -188,7 +189,21 @@ class ManualInputScreen extends StatefulWidget {
 }
 
 class _ManualInputScreenState extends State<ManualInputScreen> {
-  final ManualInputController _controller = ManualInputController();
+  late ManualInputController _controller;
+  final http.Client _client = http.Client();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ManualInputController(client: _client);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _client.close(); // Đóng client để tránh rò rỉ bộ nhớ
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -207,13 +222,19 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildTextField(_controller.merchantController, "Merchant Name"),
-              _buildTextField(_controller.amountController, "Amount"),
+              _buildTextField(_controller.amountController, "Amount", isNumber: true),
               _buildDropdownCategory(),
               _buildDatePickerField(),
               _buildTextField(_controller.descriptionController, "Description"),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () => _controller.saveExpense(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.pink.shade900,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  textStyle: const TextStyle(fontSize: 16),
+                ),
                 child: const Text("Save Expense"),
               ),
             ],
@@ -223,12 +244,12 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label) {
+  Widget _buildTextField(TextEditingController controller, String label, {bool isNumber = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextField(
         controller: controller,
-        keyboardType: label == "Amount" ? TextInputType.number : TextInputType.text,
+        keyboardType: isNumber ? TextInputType.number : TextInputType.text,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: const TextStyle(color: Colors.white),
@@ -253,6 +274,7 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           filled: true,
           fillColor: Colors.grey.shade900,
+          suffixIcon: const Icon(Icons.calendar_today, color: Colors.white),
         ),
         style: const TextStyle(color: Colors.white),
         onTap: () async {
@@ -261,6 +283,19 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
             initialDate: DateTime.now(),
             firstDate: DateTime(2000),
             lastDate: DateTime(2101),
+            builder: (context, child) {
+              return Theme(
+                data: Theme.of(context).copyWith(
+                  colorScheme: ColorScheme.dark(
+                    primary: Colors.pink.shade900,
+                    onPrimary: Colors.white,
+                    surface: Colors.black,
+                    onSurface: Colors.white,
+                  ),
+                ),
+                child: child!,
+              );
+            },
           );
           if (pickedDate != null) {
             setState(() {
@@ -273,17 +308,31 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
   }
 
   Widget _buildDropdownCategory() {
-    return DropdownButtonFormField<String>(
-      value: _controller.selectedCategory,
-      dropdownColor: Colors.black,
-      items: ["Food", "Transport", "Entertainment", "Other"]
-          .map((cat) => DropdownMenuItem(value: cat, child: Text(cat, style: const TextStyle(color: Colors.white))))
-          .toList(),
-      onChanged: (value) {
-        setState(() {
-          _controller.selectedCategory = value!;
-        });
-      },
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: DropdownButtonFormField<String>(
+        value: _controller.selectedCategory,
+        dropdownColor: Colors.black,
+        decoration: InputDecoration(
+          labelText: "Category",
+          labelStyle: const TextStyle(color: Colors.white),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          filled: true,
+          fillColor: Colors.grey.shade900,
+        ),
+        items: ["Food", "Transport", "Entertainment", "Other"]
+            .map((cat) => DropdownMenuItem(
+                  value: cat,
+                  child: Text(cat, style: const TextStyle(color: Colors.white)),
+                ))
+            .toList(),
+        onChanged: (value) {
+          setState(() {
+            _controller.selectedCategory = value!;
+          });
+        },
+        validator: (value) => value == null ? "Vui lòng chọn danh mục" : null,
+      ),
     );
   }
 }
