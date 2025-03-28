@@ -46,3 +46,4 @@ app.*.map.json
 assets/key/credentials.json
 assets/key/credentials1.json
 
+assets/key/*.json
