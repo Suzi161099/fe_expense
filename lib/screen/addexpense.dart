@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'home.dart';
 import 'manualinput.dart';
 import 'uploadfile.dart';
-import 'voice.dart'; 
+import 'voice.dart';
+import 'scan.dart';
+import 'scanexpensepage.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   const AddExpenseScreen({super.key});
@@ -23,12 +25,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     } else if (selectedInputMethod == "Voice input") {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const VoiceInputPage()), // Chuyển đến trang VoiceInputPage
+        MaterialPageRoute(builder: (context) => const VoiceInputPage()),
       );
     } else if (selectedInputMethod == "Upload PDF") {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const UploadFileScreen()),
+      );
+    } else if (selectedInputMethod == "Scan receipt") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => ScanPage()), // Chuyển đến trang ScanScreen
       );
     }
   }

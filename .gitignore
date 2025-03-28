@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+assets/key/credentials.json
+assets/key/credentials1.json
+

@@ -73,7 +73,7 @@ void main() {
 });
 
  testWidgets('Đăng ký thành công', (WidgetTester tester) async {
-  // Mock HTTP response khi đăng ký thành công
+
   when(mockHttpClient.post(
     any,
     headers: anyNamed("headers"),
@@ -97,14 +97,14 @@ void main() {
     )),
   ));
 
-  // Nhấn nút "Đăng ký"
-  await tester.tap(find.text("Đăng ký"));
-  await tester.pump(); // Chạy animation cho SnackBar
 
-  // Kiểm tra hiển thị thông báo đăng ký thành công
+  await tester.tap(find.text("Đăng ký"));
+  await tester.pump();
+
+
   expect(find.text("Đăng ký thành công"), findsOneWidget);
 
-  // Kiểm tra token đã lưu vào SharedPreferences
+  
   final prefs = await SharedPreferences.getInstance();
   expect(prefs.getString("token"), "fake_token");
 });
